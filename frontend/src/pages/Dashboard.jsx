@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { productoService } from '../services/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useCart } from '../context/CartContext.jsx';
 import ProductoForm from '../components/ProductoForm.jsx';
 import Alert from '../components/Alert.jsx';
 import Loading from '../components/Loading.jsx';
@@ -26,6 +27,7 @@ function categoriaIcon(cat) {
 
 export default function Dashboard() {
   const { esAdmin } = useAuth();
+  const { carrito, agregarAlCarrito } = useCart();
   const [productos, setProductos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
@@ -33,6 +35,7 @@ export default function Dashboard() {
   const [mostrarForm, setMostrarForm] = useState(false);
   const [productoEditar, setProductoEditar] = useState(null);
   const [vista, setVista] = useState('tarjetas');
+  const [agregado, setAgregado] = useState(null);
 
   async function cargarProductos() {
     setCargando(true);
@@ -84,6 +87,17 @@ export default function Dashboard() {
     setTimeout(() => setExito(''), 3000);
   }
 
+  function handleAgregarCarrito(producto) {
+    if (producto.stock <= 0) return;
+    agregarAlCarrito(producto);
+    setAgregado(producto._id);
+    setTimeout(() => setAgregado(null), 1500);
+  }
+
+  function enCarrito(id) {
+    return carrito.some((i) => i.producto._id === id);
+  }
+
   const stockBajo = productos.filter((p) => p.stock <= 5).length;
   const valorTotal = productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.stock), 0);
 
@@ -117,29 +131,31 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="stats-row">
-        <div className="stat-card">
-          <div className="stat-icon stat-icon-blue">📦</div>
-          <div className="stat-info">
-            <div className="stat-value">{productos.length}</div>
-            <div className="stat-label">Total productos</div>
+      {esAdmin && (
+        <div className="stats-row">
+          <div className="stat-card">
+            <div className="stat-icon stat-icon-blue">📦</div>
+            <div className="stat-info">
+              <div className="stat-value">{productos.length}</div>
+              <div className="stat-label">Total productos</div>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-icon stat-icon-yellow">⚠️</div>
+            <div className="stat-info">
+              <div className="stat-value">{stockBajo}</div>
+              <div className="stat-label">Stock bajo (≤5)</div>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-icon stat-icon-green">💰</div>
+            <div className="stat-info">
+              <div className="stat-value">${valorTotal.toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div className="stat-label">Valor total</div>
+            </div>
           </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-icon stat-icon-yellow">⚠️</div>
-          <div className="stat-info">
-            <div className="stat-value">{stockBajo}</div>
-            <div className="stat-label">Stock bajo (≤5)</div>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon stat-icon-green">💰</div>
-          <div className="stat-info">
-            <div className="stat-value">${valorTotal.toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-            <div className="stat-label">Valor total</div>
-          </div>
-        </div>
-      </div>
+      )}
 
       {!esAdmin && (
         <Alert tipo="exito" mensaje="Tienes acceso de solo lectura. Contacta a un administrador para gestionar productos." />
@@ -174,9 +190,12 @@ export default function Dashboard() {
       ) : vista === 'tarjetas' ? (
         <div className="productos-grid">
           {productos.map((p) => (
-            <div className="producto-card" key={p._id}>
+            <div className={`producto-card ${enCarrito(p._id) ? 'producto-card--en-carrito' : ''}`} key={p._id}>
               <div className="producto-card-img">
                 {categoriaIcon(p.categoria)}
+                {enCarrito(p._id) && (
+                  <div className="producto-card-carrito-tag">En carrito</div>
+                )}
               </div>
               <div className="producto-card-body">
                 {p.categoria && (
@@ -194,12 +213,22 @@ export default function Dashboard() {
                 <div className="producto-card-price">
                   ${Number(p.precio).toFixed(2)}
                 </div>
-                {esAdmin && (
-                  <div className="producto-card-actions">
-                    <button className="btn btn-sm btn-ghost" onClick={() => abrirEditar(p)}>Editar</button>
-                    <button className="btn btn-sm btn-danger" onClick={() => eliminarProducto(p._id)}>Eliminar</button>
-                  </div>
-                )}
+                <div className="producto-card-actions">
+                  <button
+                    className={`btn btn-sm ${agregado === p._id ? 'btn-success-flash' : 'btn-carrito'}`}
+                    onClick={() => handleAgregarCarrito(p)}
+                    disabled={p.stock <= 0}
+                    title={p.stock <= 0 ? 'Sin stock' : 'Agregar al carrito'}
+                  >
+                    {agregado === p._id ? '✓ Agregado' : '🛒'}
+                  </button>
+                  {esAdmin && (
+                    <>
+                      <button className="btn btn-sm btn-ghost" onClick={() => abrirEditar(p)}>Editar</button>
+                      <button className="btn btn-sm btn-danger" onClick={() => eliminarProducto(p._id)}>Eliminar</button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           ))}
@@ -216,6 +245,7 @@ export default function Dashboard() {
                   <th>Precio</th>
                   <th>Stock</th>
                   <th>Categoria</th>
+                  <th>Carrito</th>
                   {esAdmin && <th>Acciones</th>}
                 </tr>
               </thead>
@@ -230,6 +260,15 @@ export default function Dashboard() {
                     <td style={{ fontWeight: 700 }}>${Number(p.precio).toFixed(2)}</td>
                     <td>{stockBadge(p.stock)}</td>
                     <td>{p.categoria || '—'}</td>
+                    <td>
+                      <button
+                        className={`btn btn-sm ${enCarrito(p._id) ? 'btn-carrito-active' : 'btn-carrito'}`}
+                        onClick={() => handleAgregarCarrito(p)}
+                        disabled={p.stock <= 0}
+                      >
+                        {enCarrito(p._id) ? '✓ En carrito' : '🛒 Agregar'}
+                      </button>
+                    </td>
                     {esAdmin && (
                       <td className="td-acciones">
                         <button className="btn btn-sm btn-ghost" onClick={() => abrirEditar(p)}>Editar</button>
