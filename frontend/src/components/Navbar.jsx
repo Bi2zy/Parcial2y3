@@ -1,8 +1,10 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useCart } from '../context/CartContext.jsx';
 
 export default function Navbar() {
   const { usuario, autenticado, logout } = useAuth();
+  const { totalItems } = useCart();
   const navigate = useNavigate();
 
   function handleLogout() {
@@ -30,6 +32,12 @@ export default function Navbar() {
         <div className="navbar-right">
           {autenticado ? (
             <>
+              <Link to="/carrito" className="navbar-cart-btn">
+                🛒
+                {totalItems > 0 && (
+                  <span className="navbar-cart-badge">{totalItems}</span>
+                )}
+              </Link>
               <div className="navbar-user-chip">
                 <div className="navbar-avatar">
                   {usuario?.nombre?.charAt(0).toUpperCase()}
