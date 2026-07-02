@@ -131,29 +131,31 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="stats-row">
-        <div className="stat-card">
-          <div className="stat-icon stat-icon-blue">📦</div>
-          <div className="stat-info">
-            <div className="stat-value">{productos.length}</div>
-            <div className="stat-label">Total productos</div>
+      {esAdmin && (
+        <div className="stats-row">
+          <div className="stat-card">
+            <div className="stat-icon stat-icon-blue">📦</div>
+            <div className="stat-info">
+              <div className="stat-value">{productos.length}</div>
+              <div className="stat-label">Total productos</div>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-icon stat-icon-yellow">⚠️</div>
+            <div className="stat-info">
+              <div className="stat-value">{stockBajo}</div>
+              <div className="stat-label">Stock bajo (≤5)</div>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-icon stat-icon-green">💰</div>
+            <div className="stat-info">
+              <div className="stat-value">${valorTotal.toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div className="stat-label">Valor total</div>
+            </div>
           </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-icon stat-icon-yellow">⚠️</div>
-          <div className="stat-info">
-            <div className="stat-value">{stockBajo}</div>
-            <div className="stat-label">Stock bajo (≤5)</div>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon stat-icon-green">💰</div>
-          <div className="stat-info">
-            <div className="stat-value">${valorTotal.toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-            <div className="stat-label">Valor total</div>
-          </div>
-        </div>
-      </div>
+      )}
 
       {!esAdmin && (
         <Alert tipo="exito" mensaje="Tienes acceso de solo lectura. Contacta a un administrador para gestionar productos." />
