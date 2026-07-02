@@ -12,28 +12,46 @@ export default function Navbar() {
 
   return (
     <nav className="navbar">
-      <div className="navbar-brand">
-        <Link to="/">Inventario<span>UTP</span></Link>
-      </div>
-      <div className="navbar-links">
-        {autenticado ? (
-          <>
+      <div className="navbar-inner">
+        <div className="navbar-brand">
+          <Link to="/">
+            <div className="navbar-logo-icon">📦</div>
+            Inventario<span>UTP</span>
+          </Link>
+        </div>
+
+        {autenticado && (
+          <div className="navbar-links">
             <Link to="/dashboard">Dashboard</Link>
-            <Link to="/perfil">Perfil</Link>
-            <span className="navbar-user">
-              {usuario?.nombre}
-              <span className={`rol-badge rol-${usuario?.rol}`}>{usuario?.rol}</span>
-            </span>
-            <button className="btn btn-ghost" onClick={handleLogout}>
-              Cerrar sesion
-            </button>
-          </>
-        ) : (
-          <>
-            <Link to="/login">Iniciar sesion</Link>
-            <Link to="/register" className="btn btn-primary btn-sm">Registrarse</Link>
-          </>
+            <Link to="/perfil">Mi Perfil</Link>
+          </div>
         )}
+
+        <div className="navbar-right">
+          {autenticado ? (
+            <>
+              <div className="navbar-user-chip">
+                <div className="navbar-avatar">
+                  {usuario?.nombre?.charAt(0).toUpperCase()}
+                </div>
+                {usuario?.nombre}
+                <span className={`rol-badge rol-${usuario?.rol}`}>{usuario?.rol}</span>
+              </div>
+              <button className="btn-nav-logout" onClick={handleLogout}>
+                Salir
+              </button>
+            </>
+          ) : (
+            <>
+              <Link to="/login" style={{ color: 'rgba(255,255,255,0.85)', fontSize: '14px', fontWeight: '500', padding: '8px 14px' }}>
+                Iniciar sesion
+              </Link>
+              <Link to="/register" className="btn-nav-register">
+                Registrarse
+              </Link>
+            </>
+          )}
+        </div>
       </div>
     </nav>
   );

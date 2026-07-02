@@ -5,6 +5,25 @@ import ProductoForm from '../components/ProductoForm.jsx';
 import Alert from '../components/Alert.jsx';
 import Loading from '../components/Loading.jsx';
 
+function stockBadge(stock) {
+  if (stock <= 0) return <span className="badge badge-low">Sin stock</span>;
+  if (stock <= 5) return <span className="badge badge-warn">{stock} bajo</span>;
+  return <span className="badge badge-ok">{stock}</span>;
+}
+
+function categoriaIcon(cat) {
+  const map = {
+    auriculares: '🎧', audifonos: '🎧', audio: '🔊', celular: '📱',
+    telefono: '📱', laptop: '💻', computadora: '🖥️', camara: '📷',
+    televisor: '📺', tv: '📺', periferico: '⌨️', accesorio: '🔌',
+  };
+  const key = (cat || '').toLowerCase();
+  for (const [k, v] of Object.entries(map)) {
+    if (key.includes(k)) return v;
+  }
+  return '📦';
+}
+
 export default function Dashboard() {
   const { esAdmin } = useAuth();
   const [productos, setProductos] = useState([]);
@@ -13,41 +32,27 @@ export default function Dashboard() {
   const [exito, setExito] = useState('');
   const [mostrarForm, setMostrarForm] = useState(false);
   const [productoEditar, setProductoEditar] = useState(null);
+  const [vista, setVista] = useState('tarjetas');
 
-  // Cargar productos desde el API
   async function cargarProductos() {
     setCargando(true);
     setError('');
     try {
       const data = await productoService.listar();
       setProductos(data);
-    } catch (err) {
+    } catch {
       setError('No se pudieron cargar los productos');
     } finally {
       setCargando(false);
     }
   }
 
-  useEffect(() => {
-    cargarProductos();
-  }, []);
+  useEffect(() => { cargarProductos(); }, []);
 
-  function abrirCrear() {
-    setProductoEditar(null);
-    setMostrarForm(true);
-  }
+  function abrirCrear() { setProductoEditar(null); setMostrarForm(true); }
+  function abrirEditar(p) { setProductoEditar(p); setMostrarForm(true); }
+  function cerrarForm() { setMostrarForm(false); setProductoEditar(null); }
 
-  function abrirEditar(producto) {
-    setProductoEditar(producto);
-    setMostrarForm(true);
-  }
-
-  function cerrarForm() {
-    setMostrarForm(false);
-    setProductoEditar(null);
-  }
-
-  // Crear o actualizar segun corresponda
   async function guardarProducto(datos) {
     setError('');
     try {
@@ -73,39 +78,88 @@ export default function Dashboard() {
       await productoService.eliminar(id);
       setExito('Producto eliminado');
       cargarProductos();
-    } catch (err) {
+    } catch {
       setError('Error al eliminar el producto');
     }
     setTimeout(() => setExito(''), 3000);
   }
 
+  const stockBajo = productos.filter((p) => p.stock <= 5).length;
+  const valorTotal = productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.stock), 0);
+
   return (
     <div className="dashboard">
       <div className="dashboard-header">
-        <div>
-          <h1>Productos</h1>
-          <p className="muted">{productos.length} registros en inventario</p>
+        <div className="dashboard-title">
+          <h1>Inventario de Productos</h1>
+          <p>{productos.length} productos registrados</p>
         </div>
-        {esAdmin && (
-          <button className="btn btn-primary" onClick={abrirCrear}>+ Nuevo producto</button>
-        )}
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <div className="view-toggle">
+            <button
+              className={`view-btn ${vista === 'tarjetas' ? 'active' : ''}`}
+              onClick={() => setVista('tarjetas')}
+            >
+              ▦ Tarjetas
+            </button>
+            <button
+              className={`view-btn ${vista === 'tabla' ? 'active' : ''}`}
+              onClick={() => setVista('tabla')}
+            >
+              ≡ Tabla
+            </button>
+          </div>
+          {esAdmin && (
+            <button className="btn btn-primary" onClick={abrirCrear}>
+              + Nuevo producto
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="stats-row">
+        <div className="stat-card">
+          <div className="stat-icon stat-icon-blue">📦</div>
+          <div className="stat-info">
+            <div className="stat-value">{productos.length}</div>
+            <div className="stat-label">Total productos</div>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon stat-icon-yellow">⚠️</div>
+          <div className="stat-info">
+            <div className="stat-value">{stockBajo}</div>
+            <div className="stat-label">Stock bajo (≤5)</div>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon stat-icon-green">💰</div>
+          <div className="stat-info">
+            <div className="stat-value">${valorTotal.toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div className="stat-label">Valor total</div>
+          </div>
+        </div>
       </div>
 
       {!esAdmin && (
-        <Alert tipo="exito" mensaje="Tienes acceso de solo lectura. Solo un administrador puede crear, editar o eliminar productos." />
+        <Alert tipo="exito" mensaje="Tienes acceso de solo lectura. Contacta a un administrador para gestionar productos." />
       )}
-
       <Alert tipo="error" mensaje={error} onCerrar={() => setError('')} />
       <Alert tipo="exito" mensaje={exito} />
 
       {mostrarForm && (
-        <div className="card form-card">
-          <h2>{productoEditar ? 'Editar producto' : 'Nuevo producto'}</h2>
-          <ProductoForm
-            productoInicial={productoEditar}
-            onGuardar={guardarProducto}
-            onCancelar={cerrarForm}
-          />
+        <div className="form-card">
+          <div className="form-card-header">
+            <h2>{productoEditar ? 'Editar producto' : 'Nuevo producto'}</h2>
+            <button className="form-close-btn" onClick={cerrarForm}>×</button>
+          </div>
+          <div className="form-card-body">
+            <ProductoForm
+              productoInicial={productoEditar}
+              onGuardar={guardarProducto}
+              onCancelar={cerrarForm}
+            />
+          </div>
         </div>
       )}
 
@@ -113,43 +167,80 @@ export default function Dashboard() {
         <Loading texto="Cargando productos..." />
       ) : productos.length === 0 ? (
         <div className="empty">
-          <p>Aun no hay productos. Crea el primero con el boton de arriba.</p>
+          <div className="empty-icon">📭</div>
+          <h3>Sin productos aun</h3>
+          <p>Crea el primer producto con el boton de arriba.</p>
+        </div>
+      ) : vista === 'tarjetas' ? (
+        <div className="productos-grid">
+          {productos.map((p) => (
+            <div className="producto-card" key={p._id}>
+              <div className="producto-card-img">
+                {categoriaIcon(p.categoria)}
+              </div>
+              <div className="producto-card-body">
+                {p.categoria && (
+                  <div className="producto-card-cat">{p.categoria}</div>
+                )}
+                <div className="producto-card-name">{p.nombre}</div>
+                {p.descripcion && (
+                  <div className="producto-card-desc">{p.descripcion}</div>
+                )}
+                <div style={{ marginTop: 'auto', paddingTop: '8px' }}>
+                  {stockBadge(p.stock)}
+                </div>
+              </div>
+              <div className="producto-card-footer">
+                <div className="producto-card-price">
+                  ${Number(p.precio).toFixed(2)}
+                </div>
+                {esAdmin && (
+                  <div className="producto-card-actions">
+                    <button className="btn btn-sm btn-ghost" onClick={() => abrirEditar(p)}>Editar</button>
+                    <button className="btn btn-sm btn-danger" onClick={() => eliminarProducto(p._id)}>Eliminar</button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
-        <div className="table-wrapper">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Nombre</th>
-                <th>Descripcion</th>
-                <th>Precio</th>
-                <th>Stock</th>
-                <th>Categoria</th>
-                {esAdmin && <th>Acciones</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {productos.map((p) => (
-                <tr key={p._id}>
-                  <td className="muted">{String(p._id).slice(-6)}</td>
-                  <td className="td-nombre">{p.nombre}</td>
-                  <td className="muted">{p.descripcion || '-'}</td>
-                  <td>${Number(p.precio).toFixed(2)}</td>
-                  <td>
-                    <span className={`badge ${p.stock <= 5 ? 'badge-low' : ''}`}>{p.stock}</span>
-                  </td>
-                  <td>{p.categoria || '-'}</td>
-                  {esAdmin && (
-                    <td className="td-acciones">
-                      <button className="btn btn-sm btn-ghost" onClick={() => abrirEditar(p)}>Editar</button>
-                      <button className="btn btn-sm btn-danger" onClick={() => eliminarProducto(p._id)}>Eliminar</button>
-                    </td>
-                  )}
+        <div className="card">
+          <div className="table-wrapper">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Nombre</th>
+                  <th>Descripcion</th>
+                  <th>Precio</th>
+                  <th>Stock</th>
+                  <th>Categoria</th>
+                  {esAdmin && <th>Acciones</th>}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {productos.map((p) => (
+                  <tr key={p._id}>
+                    <td className="muted" style={{ fontFamily: 'monospace', fontSize: '12px' }}>
+                      #{String(p._id).slice(-6)}
+                    </td>
+                    <td className="td-nombre">{p.nombre}</td>
+                    <td className="muted">{p.descripcion || '—'}</td>
+                    <td style={{ fontWeight: 700 }}>${Number(p.precio).toFixed(2)}</td>
+                    <td>{stockBadge(p.stock)}</td>
+                    <td>{p.categoria || '—'}</td>
+                    {esAdmin && (
+                      <td className="td-acciones">
+                        <button className="btn btn-sm btn-ghost" onClick={() => abrirEditar(p)}>Editar</button>
+                        <button className="btn btn-sm btn-danger" onClick={() => eliminarProducto(p._id)}>Eliminar</button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

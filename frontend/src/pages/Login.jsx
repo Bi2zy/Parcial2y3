@@ -13,24 +13,16 @@ export default function Login() {
 
   async function handleSubmit() {
     setError('');
-
-    // Validaciones basicas antes de enviar
-    if (!email || !password) {
-      setError('Completa el correo y la contrasena');
-      return;
-    }
+    if (!email || !password) { setError('Completa el correo y la contrasena'); return; }
     const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    if (!emailValido) {
-      setError('Ingresa un correo con formato valido');
-      return;
-    }
+    if (!emailValido) { setError('Ingresa un correo con formato valido'); return; }
 
     setCargando(true);
     try {
       await login(email, password);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.mensaje || 'Error al iniciar sesion');
+      setError(err.response?.data?.mensaje || 'Credenciales incorrectas');
     } finally {
       setCargando(false);
     }
@@ -42,46 +34,59 @@ export default function Login() {
 
   return (
     <div className="auth-page">
-      <div className="auth-card">
-        <h1>Iniciar sesion</h1>
-        <p className="auth-subtitle">Accede a tu panel de inventario</p>
-
-        <Alert tipo="error" mensaje={error} onCerrar={() => setError('')} />
-
-        <div className="form-group">
-          <label>Correo electronico</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="admin@demo.com"
-          />
+      <div className="auth-wrapper">
+        <div className="auth-logo-area">
+          <h2>Inventario<span>UTP</span></h2>
+          <p>Sistema de gestion de inventario</p>
         </div>
 
-        <div className="form-group">
-          <label>Contrasena</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="123456"
-          />
-        </div>
+        <div className="auth-card">
+          <h1>Bienvenido de nuevo</h1>
+          <p className="auth-subtitle">Ingresa tus credenciales para continuar</p>
 
-        <button className="btn btn-primary btn-block" onClick={handleSubmit} disabled={cargando}>
-          {cargando ? 'Ingresando...' : 'Iniciar sesion'}
-        </button>
+          <Alert tipo="error" mensaje={error} onCerrar={() => setError('')} />
 
-        <p className="auth-footer">
-          No tienes cuenta? <Link to="/register">Registrate</Link>
-        </p>
+          <div className="form-group">
+            <label>Correo electronico</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="correo@ejemplo.com"
+            />
+          </div>
 
-        <div className="auth-hint">
-          <strong>Credenciales de prueba:</strong><br />
-          admin@demo.com / 123456 (admin)<br />
-          usuario@demo.com / 123456 (solo lectura)
+          <div className="form-group">
+            <label>Contrasena</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="••••••••"
+            />
+          </div>
+
+          <button
+            className="btn btn-primary btn-block"
+            onClick={handleSubmit}
+            disabled={cargando}
+            style={{ marginTop: '8px' }}
+          >
+            {cargando ? 'Ingresando...' : 'Iniciar sesion →'}
+          </button>
+
+          <p className="auth-footer">
+            No tienes cuenta?{' '}
+            <Link to="/register">Registrate gratis</Link>
+          </p>
+
+          <div className="auth-hint">
+            <strong>Credenciales de prueba</strong><br />
+            admin@demo.com / 123456 — Administrador<br />
+            usuario@demo.com / 123456 — Solo lectura
+          </div>
         </div>
       </div>
     </div>

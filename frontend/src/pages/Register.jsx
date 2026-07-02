@@ -16,24 +16,15 @@ export default function Register() {
     setError('');
     setExito('');
 
-    if (!nombre || !email || !password) {
-      setError('Todos los campos son obligatorios');
-      return;
-    }
+    if (!nombre || !email || !password) { setError('Todos los campos son obligatorios'); return; }
     const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    if (!emailValido) {
-      setError('Ingresa un correo con formato valido');
-      return;
-    }
-    if (password.length < 6) {
-      setError('La contrasena debe tener al menos 6 caracteres');
-      return;
-    }
+    if (!emailValido) { setError('Ingresa un correo con formato valido'); return; }
+    if (password.length < 6) { setError('La contrasena debe tener al menos 6 caracteres'); return; }
 
     setCargando(true);
     try {
       await authService.register(nombre, email, password);
-      setExito('Cuenta creada correctamente. Redirigiendo al login...');
+      setExito('Cuenta creada correctamente. Redirigiendo...');
       setTimeout(() => navigate('/login'), 1500);
     } catch (err) {
       setError(err.response?.data?.mensaje || 'Error al registrar');
@@ -44,35 +35,62 @@ export default function Register() {
 
   return (
     <div className="auth-page">
-      <div className="auth-card">
-        <h1>Crear cuenta</h1>
-        <p className="auth-subtitle">Registrate para gestionar el inventario</p>
-
-        <Alert tipo="error" mensaje={error} onCerrar={() => setError('')} />
-        <Alert tipo="exito" mensaje={exito} />
-
-        <div className="form-group">
-          <label>Nombre</label>
-          <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Tu nombre" />
+      <div className="auth-wrapper">
+        <div className="auth-logo-area">
+          <h2>Inventario<span>UTP</span></h2>
+          <p>Crea tu cuenta y empieza a gestionar</p>
         </div>
 
-        <div className="form-group">
-          <label>Correo electronico</label>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="correo@ejemplo.com" />
+        <div className="auth-card">
+          <h1>Crear cuenta</h1>
+          <p className="auth-subtitle">Completa el formulario para registrarte</p>
+
+          <Alert tipo="error" mensaje={error} onCerrar={() => setError('')} />
+          <Alert tipo="exito" mensaje={exito} />
+
+          <div className="form-group">
+            <label>Nombre completo</label>
+            <input
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              placeholder="Tu nombre"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Correo electronico</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="correo@ejemplo.com"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Contrasena</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Minimo 6 caracteres"
+            />
+          </div>
+
+          <button
+            className="btn btn-primary btn-block"
+            onClick={handleSubmit}
+            disabled={cargando}
+            style={{ marginTop: '8px' }}
+          >
+            {cargando ? 'Creando cuenta...' : 'Registrarme →'}
+          </button>
+
+          <p className="auth-footer">
+            Ya tienes cuenta?{' '}
+            <Link to="/login">Inicia sesion</Link>
+          </p>
         </div>
-
-        <div className="form-group">
-          <label>Contrasena</label>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Minimo 6 caracteres" />
-        </div>
-
-        <button className="btn btn-primary btn-block" onClick={handleSubmit} disabled={cargando}>
-          {cargando ? 'Creando...' : 'Registrarme'}
-        </button>
-
-        <p className="auth-footer">
-          Ya tienes cuenta? <Link to="/login">Inicia sesion</Link>
-        </p>
       </div>
     </div>
   );
