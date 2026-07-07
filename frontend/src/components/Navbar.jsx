@@ -4,7 +4,7 @@ import { useCart } from '../context/CartContext.jsx';
 
 export default function Navbar() {
   const { usuario, autenticado, logout } = useAuth();
-  const { totalItems } = useCart();
+  const { totalItems, saldo } = useCart();
   const navigate = useNavigate();
 
   function handleLogout() {
@@ -17,14 +17,14 @@ export default function Navbar() {
       <div className="navbar-inner">
         <div className="navbar-brand">
           <Link to="/">
-            <div className="navbar-logo-icon">📦</div>
-            Inventario<span>UTP</span>
+            <div className="navbar-logo-icon">🛍️</div>
+            Shop<span>UTP</span>
           </Link>
         </div>
 
         {autenticado && (
           <div className="navbar-links">
-            <Link to="/dashboard">Dashboard</Link>
+            <Link to="/dashboard">Tienda</Link>
             <Link to="/perfil">Mi Perfil</Link>
           </div>
         )}
@@ -32,6 +32,9 @@ export default function Navbar() {
         <div className="navbar-right">
           {autenticado ? (
             <>
+              <div className="navbar-saldo">
+                💰 ${saldo.toFixed(2)}
+              </div>
               <Link to="/carrito" className="navbar-cart-btn">
                 🛒
                 {totalItems > 0 && (

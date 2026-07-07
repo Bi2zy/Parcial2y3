@@ -19,7 +19,8 @@
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
     "mongodb": "^7.4.0",
-    "mongoose": "^8.24.1"
+    "mongoose": "^8.24.1",
+    "multer": "^2.2.0"
   },
   "devDependencies": {
     "mongodb-memory-server": "^11.2.0"

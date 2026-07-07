@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { productoService } from '../services/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useCart } from '../context/CartContext.jsx';
@@ -6,23 +6,28 @@ import ProductoForm from '../components/ProductoForm.jsx';
 import Alert from '../components/Alert.jsx';
 import Loading from '../components/Loading.jsx';
 
+const API_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:4000';
+
+const TODAS = 'Todas';
+
 function stockBadge(stock) {
   if (stock <= 0) return <span className="badge badge-low">Sin stock</span>;
   if (stock <= 5) return <span className="badge badge-warn">{stock} bajo</span>;
-  return <span className="badge badge-ok">{stock}</span>;
+  return <span className="badge badge-ok">{stock} en stock</span>;
 }
 
-function categoriaIcon(cat) {
-  const map = {
-    auriculares: '🎧', audifonos: '🎧', audio: '🔊', celular: '📱',
-    telefono: '📱', laptop: '💻', computadora: '🖥️', camara: '📷',
-    televisor: '📺', tv: '📺', periferico: '⌨️', accesorio: '🔌',
-  };
-  const key = (cat || '').toLowerCase();
-  for (const [k, v] of Object.entries(map)) {
-    if (key.includes(k)) return v;
+function ProductoImg({ imagen, nombre }) {
+  if (imagen) {
+    return (
+      <img
+        src={`${API_BASE}${imagen}`}
+        alt={nombre}
+        className="producto-card-real-img"
+        onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+      />
+    );
   }
-  return '📦';
+  return null;
 }
 
 export default function Dashboard() {
@@ -34,8 +39,11 @@ export default function Dashboard() {
   const [exito, setExito] = useState('');
   const [mostrarForm, setMostrarForm] = useState(false);
   const [productoEditar, setProductoEditar] = useState(null);
-  const [vista, setVista] = useState('tarjetas');
   const [agregado, setAgregado] = useState(null);
+
+  const [busqueda, setBusqueda] = useState('');
+  const [categoriaActiva, setCategoriaActiva] = useState(TODAS);
+  const [ordenPrecio, setOrdenPrecio] = useState('');
 
   async function cargarProductos() {
     setCargando(true);
@@ -52,18 +60,42 @@ export default function Dashboard() {
 
   useEffect(() => { cargarProductos(); }, []);
 
+  const categorias = useMemo(() => {
+    const cats = [...new Set(productos.map((p) => p.categoria).filter(Boolean))];
+    return [TODAS, ...cats.sort()];
+  }, [productos]);
+
+  const productosFiltrados = useMemo(() => {
+    let lista = [...productos];
+    if (categoriaActiva !== TODAS) {
+      lista = lista.filter((p) => p.categoria === categoriaActiva);
+    }
+    if (busqueda.trim()) {
+      const q = busqueda.toLowerCase();
+      lista = lista.filter(
+        (p) =>
+          p.nombre.toLowerCase().includes(q) ||
+          (p.descripcion || '').toLowerCase().includes(q) ||
+          (p.categoria || '').toLowerCase().includes(q)
+      );
+    }
+    if (ordenPrecio === 'asc') lista.sort((a, b) => a.precio - b.precio);
+    if (ordenPrecio === 'desc') lista.sort((a, b) => b.precio - a.precio);
+    return lista;
+  }, [productos, busqueda, categoriaActiva, ordenPrecio]);
+
   function abrirCrear() { setProductoEditar(null); setMostrarForm(true); }
   function abrirEditar(p) { setProductoEditar(p); setMostrarForm(true); }
   function cerrarForm() { setMostrarForm(false); setProductoEditar(null); }
 
-  async function guardarProducto(datos) {
+  async function guardarProducto(formData) {
     setError('');
     try {
       if (productoEditar) {
-        await productoService.actualizar(productoEditar._id, datos);
+        await productoService.actualizar(productoEditar._id, formData);
         setExito('Producto actualizado correctamente');
       } else {
-        await productoService.crear(datos);
+        await productoService.crear(formData);
         setExito('Producto creado correctamente');
       }
       cerrarForm();
@@ -102,39 +134,11 @@ export default function Dashboard() {
   const valorTotal = productos.reduce((acc, p) => acc + Number(p.precio) * Number(p.stock), 0);
 
   return (
-    <div className="dashboard">
-      <div className="dashboard-header">
-        <div className="dashboard-title">
-          <h1>Inventario de Productos</h1>
-          <p>{productos.length} productos registrados</p>
-        </div>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <div className="view-toggle">
-            <button
-              className={`view-btn ${vista === 'tarjetas' ? 'active' : ''}`}
-              onClick={() => setVista('tarjetas')}
-            >
-              ▦ Tarjetas
-            </button>
-            <button
-              className={`view-btn ${vista === 'tabla' ? 'active' : ''}`}
-              onClick={() => setVista('tabla')}
-            >
-              ≡ Tabla
-            </button>
-          </div>
-          {esAdmin && (
-            <button className="btn btn-primary" onClick={abrirCrear}>
-              + Nuevo producto
-            </button>
-          )}
-        </div>
-      </div>
-
+    <div className="shop-page">
       {esAdmin && (
-        <div className="stats-row">
+        <div className="stats-row" style={{ marginBottom: '24px' }}>
           <div className="stat-card">
-            <div className="stat-icon stat-icon-blue">📦</div>
+            <div className="stat-icon stat-icon-teal">📦</div>
             <div className="stat-info">
               <div className="stat-value">{productos.length}</div>
               <div className="stat-label">Total productos</div>
@@ -144,22 +148,19 @@ export default function Dashboard() {
             <div className="stat-icon stat-icon-yellow">⚠️</div>
             <div className="stat-info">
               <div className="stat-value">{stockBajo}</div>
-              <div className="stat-label">Stock bajo (≤5)</div>
+              <div className="stat-label">Stock bajo</div>
             </div>
           </div>
           <div className="stat-card">
             <div className="stat-icon stat-icon-green">💰</div>
             <div className="stat-info">
               <div className="stat-value">${valorTotal.toLocaleString('es', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-              <div className="stat-label">Valor total</div>
+              <div className="stat-label">Valor total inventario</div>
             </div>
           </div>
         </div>
       )}
 
-      {!esAdmin && (
-        <Alert tipo="exito" mensaje="Tienes acceso de solo lectura. Contacta a un administrador para gestionar productos." />
-      )}
       <Alert tipo="error" mensaje={error} onCerrar={() => setError('')} />
       <Alert tipo="exito" mensaje={exito} />
 
@@ -179,22 +180,88 @@ export default function Dashboard() {
         </div>
       )}
 
+      <div className="shop-toolbar">
+        <div className="shop-search-wrap">
+          <span className="shop-search-icon">🔍</span>
+          <input
+            className="shop-search"
+            type="text"
+            placeholder="Buscar productos, categorias..."
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+          />
+          {busqueda && (
+            <button className="shop-search-clear" onClick={() => setBusqueda('')}>×</button>
+          )}
+        </div>
+
+        <div className="shop-controls">
+          <select
+            className="shop-order-select"
+            value={ordenPrecio}
+            onChange={(e) => setOrdenPrecio(e.target.value)}
+          >
+            <option value="">Ordenar por...</option>
+            <option value="asc">Precio: menor a mayor</option>
+            <option value="desc">Precio: mayor a menor</option>
+          </select>
+
+          {esAdmin && (
+            <button className="btn btn-accent" onClick={abrirCrear}>
+              + Nuevo producto
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="category-tabs">
+        {categorias.map((cat) => (
+          <button
+            key={cat}
+            className={`category-tab ${categoriaActiva === cat ? 'active' : ''}`}
+            onClick={() => setCategoriaActiva(cat)}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      <div className="shop-results-info">
+        {!cargando && (
+          <span>{productosFiltrados.length} producto{productosFiltrados.length !== 1 ? 's' : ''} encontrado{productosFiltrados.length !== 1 ? 's' : ''}</span>
+        )}
+      </div>
+
       {cargando ? (
         <Loading texto="Cargando productos..." />
-      ) : productos.length === 0 ? (
+      ) : productosFiltrados.length === 0 ? (
         <div className="empty">
-          <div className="empty-icon">📭</div>
-          <h3>Sin productos aun</h3>
-          <p>Crea el primer producto con el boton de arriba.</p>
+          <div className="empty-icon">🔍</div>
+          <h3>Sin resultados</h3>
+          <p>Prueba con otra busqueda o categoria.</p>
         </div>
-      ) : vista === 'tarjetas' ? (
+      ) : (
         <div className="productos-grid">
-          {productos.map((p) => (
-            <div className={`producto-card ${enCarrito(p._id) ? 'producto-card--en-carrito' : ''}`} key={p._id}>
+          {productosFiltrados.map((p) => (
+            <div
+              className={`producto-card ${enCarrito(p._id) ? 'producto-card--en-carrito' : ''}`}
+              key={p._id}
+            >
               <div className="producto-card-img">
-                {categoriaIcon(p.categoria)}
+                {p.imagen ? (
+                  <img
+                    src={`${API_BASE}${p.imagen}`}
+                    alt={p.nombre}
+                    className="producto-card-real-img"
+                  />
+                ) : (
+                  <span className="producto-card-emoji">🛍️</span>
+                )}
                 {enCarrito(p._id) && (
                   <div className="producto-card-carrito-tag">En carrito</div>
+                )}
+                {p.stock <= 0 && (
+                  <div className="producto-card-agotado-tag">Agotado</div>
                 )}
               </div>
               <div className="producto-card-body">
@@ -215,12 +282,12 @@ export default function Dashboard() {
                 </div>
                 <div className="producto-card-actions">
                   <button
-                    className={`btn btn-sm ${agregado === p._id ? 'btn-success-flash' : 'btn-carrito'}`}
+                    className={`btn btn-sm ${agregado === p._id ? 'btn-success-flash' : enCarrito(p._id) ? 'btn-carrito-active' : 'btn-accent'}`}
                     onClick={() => handleAgregarCarrito(p)}
                     disabled={p.stock <= 0}
                     title={p.stock <= 0 ? 'Sin stock' : 'Agregar al carrito'}
                   >
-                    {agregado === p._id ? '✓ Agregado' : '🛒'}
+                    {agregado === p._id ? '✓' : enCarrito(p._id) ? '✓ En carrito' : '🛒 Agregar'}
                   </button>
                   {esAdmin && (
                     <>
@@ -232,54 +299,6 @@ export default function Dashboard() {
               </div>
             </div>
           ))}
-        </div>
-      ) : (
-        <div className="card">
-          <div className="table-wrapper">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Nombre</th>
-                  <th>Descripcion</th>
-                  <th>Precio</th>
-                  <th>Stock</th>
-                  <th>Categoria</th>
-                  <th>Carrito</th>
-                  {esAdmin && <th>Acciones</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {productos.map((p) => (
-                  <tr key={p._id}>
-                    <td className="muted" style={{ fontFamily: 'monospace', fontSize: '12px' }}>
-                      #{String(p._id).slice(-6)}
-                    </td>
-                    <td className="td-nombre">{p.nombre}</td>
-                    <td className="muted">{p.descripcion || '—'}</td>
-                    <td style={{ fontWeight: 700 }}>${Number(p.precio).toFixed(2)}</td>
-                    <td>{stockBadge(p.stock)}</td>
-                    <td>{p.categoria || '—'}</td>
-                    <td>
-                      <button
-                        className={`btn btn-sm ${enCarrito(p._id) ? 'btn-carrito-active' : 'btn-carrito'}`}
-                        onClick={() => handleAgregarCarrito(p)}
-                        disabled={p.stock <= 0}
-                      >
-                        {enCarrito(p._id) ? '✓ En carrito' : '🛒 Agregar'}
-                      </button>
-                    </td>
-                    {esAdmin && (
-                      <td className="td-acciones">
-                        <button className="btn btn-sm btn-ghost" onClick={() => abrirEditar(p)}>Editar</button>
-                        <button className="btn btn-sm btn-danger" onClick={() => eliminarProducto(p._id)}>Eliminar</button>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
         </div>
       )}
     </div>

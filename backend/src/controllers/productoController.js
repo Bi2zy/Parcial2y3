@@ -1,6 +1,14 @@
 import Producto from '../models/Producto.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-// GET /api/productos -> listar todos (cualquier usuario autenticado)
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+function rutaArchivo(filename) {
+  return path.join(__dirname, '../../uploads', filename);
+}
+
 export async function listar(req, res, next) {
   try {
     const productos = await Producto.find().sort({ createdAt: -1 });
@@ -10,7 +18,6 @@ export async function listar(req, res, next) {
   }
 }
 
-// GET /api/productos/:id -> obtener uno
 export async function obtener(req, res, next) {
   try {
     const producto = await Producto.findById(req.params.id);
@@ -23,16 +30,17 @@ export async function obtener(req, res, next) {
   }
 }
 
-// POST /api/productos -> crear (solo admin)
 export async function crear(req, res, next) {
   try {
     const { nombre, descripcion, precio, stock, categoria } = req.body;
+    const imagen = req.file ? `/uploads/${req.file.filename}` : '';
     const producto = await Producto.create({
       nombre,
       descripcion,
-      precio,
-      stock,
+      precio: Number(precio),
+      stock: Number(stock) || 0,
       categoria,
+      imagen,
       creadoPor: req.usuario._id,
     });
     return res.status(201).json({ mensaje: 'Producto creado', producto });
@@ -41,15 +49,24 @@ export async function crear(req, res, next) {
   }
 }
 
-// PUT /api/productos/:id -> actualizar (solo admin)
 export async function actualizar(req, res, next) {
   try {
     const { nombre, descripcion, precio, stock, categoria } = req.body;
-    const producto = await Producto.findByIdAndUpdate(
-      req.params.id,
-      { nombre, descripcion, precio, stock, categoria },
-      { new: true, runValidators: true }
-    );
+    const actualizacion = { nombre, descripcion, precio: Number(precio), stock: Number(stock) || 0, categoria };
+
+    if (req.file) {
+      const existente = await Producto.findById(req.params.id);
+      if (existente?.imagen) {
+        const oldFile = rutaArchivo(path.basename(existente.imagen));
+        if (fs.existsSync(oldFile)) fs.unlinkSync(oldFile);
+      }
+      actualizacion.imagen = `/uploads/${req.file.filename}`;
+    }
+
+    const producto = await Producto.findByIdAndUpdate(req.params.id, actualizacion, {
+      new: true,
+      runValidators: true,
+    });
     if (!producto) {
       return res.status(404).json({ mensaje: 'Producto no encontrado' });
     }
@@ -59,12 +76,15 @@ export async function actualizar(req, res, next) {
   }
 }
 
-// DELETE /api/productos/:id -> eliminar (solo admin)
 export async function eliminar(req, res, next) {
   try {
     const producto = await Producto.findByIdAndDelete(req.params.id);
     if (!producto) {
       return res.status(404).json({ mensaje: 'Producto no encontrado' });
+    }
+    if (producto.imagen) {
+      const file = rutaArchivo(path.basename(producto.imagen));
+      if (fs.existsSync(file)) fs.unlinkSync(file);
     }
     return res.json({ mensaje: 'Producto eliminado correctamente' });
   } catch (error) {

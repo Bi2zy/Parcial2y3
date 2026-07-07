@@ -27,6 +27,10 @@ const productoSchema = new mongoose.Schema(
       default: '',
       trim: true,
     },
+    imagen: {
+      type: String,
+      default: '',
+    },
     // Referencia al usuario que creo el producto
     creadoPor: {
       type: mongoose.Schema.Types.ObjectId,
